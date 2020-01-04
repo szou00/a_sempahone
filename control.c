@@ -11,105 +11,118 @@
 
 #define KEY 24601
 #define KEY_2 24602
-#define SEG_SIZE 200
+#define SHSIZE 200
 
-int semd, shmd, file;
-char flag[SEG_SIZE];
-struct sembuf sb;
+int shmid;
+char *shm;
 int fd;
-
-union semun {
-  int val;
-  struct semid_ds *buf;
-  unsigned short *arr;
-  struct seminfo *_buf;
-}
+union semun sm;
+// union semun {
+//   int val;
+//   struct semid_ds *buf;
+//   unsigned short *arr;
+//   struct seminfo *_buf;
+// }
 
 int create() {
-  union semun semaphore;
+  int shmid;
+  char *shm;
+  int fd;
+  union semun sm;
 
-  semd = semget(SEMKEY, 1, IPC_CREAT | IPC_EXCL | 0644);
-  if (semd == -1) {
-    printf("error %d: %s\n", errno, strerror(errno));
-    semd = semget(KEY, 1, 0);
-    semctl(semd, 0, SETVAL, semaphore.val);
-    printf("semctl returned: %d\n", v);
+  //semaphore
+  shmid = shmget(KEY, SHSIZE, IPC_CREAT | 0644);
+  if (shmid < 0) {
+    printf("SEMAPHORE error %d: %s\n", errno, strerror(errno));
     return errno;
   }
-  printf("created semaphore\n");
-  sempahore.val = 1;
-  semctl(semd, 0, SETVAL, semaphore);
-  // printf("semctl returned: %d\n", r);
+  printf("semaphore created\n");
 
-  shmd = shmget(SHKEY, size of(* char), IPC_CREAT | IPC_EXCL | 0644);
-  if (shmd == -1) {
-    printf("error %d: %s\n", errno, strerror(errno));
+  semctl(shmid, 0, SETVAL, sm);
+  sm.val = 1;
+
+  //memory
+  shm = shmat(shmid, NULL, 0);
+  if (shm == (char *) -1) {
+    printf("MEMORY error %d: %s\n", errno, strerror(errno));
     return errno;
   }
-  printf("created shared memory");
-  fd = open("story.txt", 0_CREAT | 0_TRUNC, 0644);
+  printf("shared memory created\n");
+
+  //file
+  fd = open("file.txt", O_CREAT | O_TRUNC | O_RDWR, 0644);
   if (fd == -1) {
+    printf("FILE error %d: %s\n", errno, strerror(errno));
+    return errno;
+  }
+  close(fd);
+  printf("file created\n");
+  return 0;
+}
+
+int view() {
+  FILE *fd = fopen("file.txt", "r");
+  char lines;
+  if (fd == NULL) {
     printf("error %d: %s\n", errno, strerror(errno));
     return errno;
   }
-  printf("created file");
-  close(fd);
+  lines = fgetc(fd);
+  printf("the story so far:\n");
+  while (lines != EOF) {
+    printf("%c", lines);
+    lines = fgetc(fd);
+  }
+  fclose(fd);
+  return 0;
+}
+
+int removing() {
+  printf("checking if semaphore is available\n");
+  shmid = semget(KEY, 1, 0); //checks if semaphore is open
+  if (shmid < 0) {
+    printf("error %d: %s\n", errno, strerror(errno));
+    return errno;
+  }
+  printf("available!\n");
+  printf("tring to get in\n");
+
+  struct sembuf semaphore;
+  semaphore.sem_num = 0;
+  semaphore.sem_num = -1;
+  semop(shmid, &semaphore,1);
+
+  view(); //display contents
+
+  //removing memory
+  int shmd;
+  shmd = shmget(KEY, SHSIZE, 0);
+  if (semctl(shmd, IPC_RMID, 0)) {
+    printf("SHARED MEMORY error %d: %s\n", errno, strerror(errno));
+    return errno;
+  }
+  printf("shared memory removed\n");
+
+  //removing semaphore
+  if (semctl(shmd, IPC_RMID, 0)) {
+    printf("SEMAPHORE error %d: %s\n", errno, strerror(errno));
+    return errno;
+  }
+  printf("semaphore removed\n");
+
+  //removing file
+  if (remove("file.txt")) {
+    printf("FILE error %d: %s\n", errno, strerror(errno));
+    return errno;
+  }
+  printf("file removed\n");
 
   return 0;
 }
 
-int remove() {
-  view();
-  semd = semget(SEMKEY, 1, 0644);
-  shmd = semget(SHR_KEY, 0, 0644);
-  if (semd == -1) {
-    printf("error %d: %s\n", errno, strerror(errno));
-    return errno;
-  }
-  else {
-    printf("tring to get in\n");
-    semaphore.sem_num = 0;
-    semaphore.sem_num = -1;
-    semop(semd, &sempahore,1);
-  }
-
-  shmd = smget(SHKEY, sizeof())
-
-    // view();
-    // remove("story.txt");
-    // int shmid = shmget(KEY2, sizeof(int), 0);
-    // int what = shmctl(shmid, IPC_RMID, NULL);
-    // int semid = semget(KEY, 1, 0);
-    // semctl(semid, 0, IPC_RMID);
-    // printf("Removed!\n");
-}
-
-int view() {
-  int fd = open("story.txt", 0_RDONLY);
-  if (fd == -1) {
-    printf("error %d: %s\n", errno, strerror(errno));
-    return errno;
-  }
-  char * file = calloc(2056, sizeof(char));
-    int last = read(fd, file, 2056);
-    if (last == -1){
-        printf("error %d: %s\n", errno, strerror(errno));
-        return;
-    }
-  char * lines = strrchr(file, '\n');
-    if (lines){
-       *lines = 0;
-     }
-  printf("%s\n", file);
-  free(file);
-  close(fd);
-  return;
-}
-
-int main() {
-  int sem_id;
+int main(int argc, char *argv[]) {
   if (argc == 1) {
-    printf("Wrong arguments\n");
+    printf("please type in two arguments\n");
   }
   if (argc == 2) {
     if (strcmp(argv[1],"-c") == 0) {
@@ -119,10 +132,11 @@ int main() {
       view();
     }
     else if (strcmp(argv[1],"-r") == 0) {
-      delete();
+      printf("removing\n");
+      removing();
     }
     else
-      printf("Wrong arguments\n");
+      printf("please make sure to type in -c, -v, or -r only\n");
     }
   return 0;
 }
