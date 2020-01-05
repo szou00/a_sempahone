@@ -39,7 +39,7 @@ int create() {
   // shmid = semget(KEY, 1, 0);
 
   //memory
-  shmd = shmget(KEY_1, sizeof(int), IPC_CREAT | 0644);
+  shmd = shmget(KEY_1, sizeof(char *), IPC_CREAT | 0644);
   if (shmd < 0) {
     printf("MEMORY error %d: %s\n", errno, strerror(errno));
     return errno;
@@ -81,8 +81,8 @@ int removing() {
     printf("error %d: %s\n", errno, strerror(errno));
     return errno;
   }
-  printf("available!\n");
-  printf("tring to get in\n");
+  // printf("available!\n");
+  // printf("tring to get in\n");
 
   // semaphore.sem_num = 0;
   // semaphore.sem_num = -1;
@@ -102,7 +102,7 @@ int removing() {
     printf("in removing u have shared memory error %d: %s\n", errno, strerror(errno));
     return errno;
   }
-  printf("shared memory removed\n");
+  printf("\nshared memory removed\n");
 
   //removing semaphore
   if (semctl(shmid, IPC_RMID, 0) == -1) {
@@ -123,7 +123,7 @@ int removing() {
 
 int main(int argc, char *argv[]) {
   if (argc == 1) {
-    printf("please type in two arguments\n");
+    printf("Please type in two arguments\n");
   }
   if (argc == 2) {
     if (strcmp(argv[1],"-c") == 0) {
@@ -133,11 +133,11 @@ int main(int argc, char *argv[]) {
       view();
     }
     else if (strcmp(argv[1],"-r") == 0) {
-      printf("removing\n");
+      // printf("removing\n");
       removing();
     }
     else
-      printf("please make sure to type in -c, -v, or -r only\n");
+      printf("Please make sure to type in -c, -v, or -r only\n");
     }
   return 0;
 }

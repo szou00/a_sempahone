@@ -14,27 +14,27 @@
 
 int shmid;
 int shmd;
-int fd;
-union semun sm;
+// int fd;
+// union semun sm;
 struct sembuf semaphore;
 
 int main() {
   printf("trying to get in\n");
-  //checking memory
-  shmd = shmget(KEY_1, 1, 0);
-  if (shmd < 0) {
-    printf("memory error %d: %s\n", errno, strerror(errno));
-    return errno;
-  }
   //checking semaphore
   shmid = semget(KEY_2, 1, 0);
   if (shmid < 0) {
     printf("semaphore error %d: %s\n", errno, strerror(errno));
     return errno;
   }
-  semaphore.sem_op = -1;
-  semaphore.sem_op = 0;
+
   semop(shmid, &semaphore, 1);
+
+  //checking memory
+  shmd = shmget(KEY_1, sizeof(char *), 0);
+  if (shmd < 0) {
+    printf("memory error %d: %s\n", errno, strerror(errno));
+    return errno;
+  }
 
   //opening file
   FILE *fd = fopen("file.txt", "a");
@@ -49,6 +49,7 @@ int main() {
 
   fclose(fd);
   //release memory
+  strcpy(last_line, next_line);
   shmdt(last_line);
   semaphore.sem_op = 1;
   //release semaphore
