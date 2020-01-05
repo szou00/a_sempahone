@@ -9,14 +9,14 @@
 #include <errno.h>
 #include <fcntl.h>
 
-#define KEY 24601
+#define KEY_1 24601
 #define KEY_2 24602
-#define SHSIZE 200
 
 int shmid;
-char *shm;
+int shmd;
 int fd;
 union semun sm;
+struct sembuf semaphore;
 // union semun {
 //   int val;
 //   struct semid_ds *buf;
@@ -25,13 +25,9 @@ union semun sm;
 // }
 
 int create() {
-  int shmid;
-  char *shm;
-  int fd;
-  union semun sm;
 
   //semaphore
-  shmid = shmget(KEY, SHSIZE, IPC_CREAT | 0644);
+  shmid = semget(KEY_2, 1, IPC_CREAT | 0644);
   if (shmid < 0) {
     printf("SEMAPHORE error %d: %s\n", errno, strerror(errno));
     return errno;
@@ -39,11 +35,12 @@ int create() {
   printf("semaphore created\n");
 
   semctl(shmid, 0, SETVAL, sm);
-  sm.val = 1;
+  // sm.val = 1;
+  // shmid = semget(KEY, 1, 0);
 
   //memory
-  shm = shmat(shmid, NULL, 0);
-  if (shm == (char *) -1) {
+  shmd = shmget(KEY_1, sizeof(int), IPC_CREAT | 0644);
+  if (shmd < 0) {
     printf("MEMORY error %d: %s\n", errno, strerror(errno));
     return errno;
   }
@@ -51,7 +48,7 @@ int create() {
 
   //file
   fd = open("file.txt", O_CREAT | O_TRUNC | O_RDWR, 0644);
-  if (fd == -1) {
+  if (fd < 0) {
     printf("FILE error %d: %s\n", errno, strerror(errno));
     return errno;
   }
@@ -79,7 +76,7 @@ int view() {
 
 int removing() {
   printf("checking if semaphore is available\n");
-  shmid = semget(KEY, 1, 0); //checks if semaphore is open
+  shmid = semget(KEY_2, 1, 0); //checks if semaphore is open
   if (shmid < 0) {
     printf("error %d: %s\n", errno, strerror(errno));
     return errno;
@@ -87,24 +84,28 @@ int removing() {
   printf("available!\n");
   printf("tring to get in\n");
 
-  struct sembuf semaphore;
-  semaphore.sem_num = 0;
-  semaphore.sem_num = -1;
+  // semaphore.sem_num = 0;
+  // semaphore.sem_num = -1;
   semop(shmid, &semaphore,1);
 
-  view(); //display contents
+  //printing contents
+  view();
+
+  shmd = shmget(KEY_1, 1, 0);
+  if (shmd < 0) {
+    printf("Trying to viewing the file you got shared memory error %d: %s\n", errno, strerror(errno));
+    return errno;
+  }
 
   //removing memory
-  int shmd;
-  shmd = shmget(KEY, SHSIZE, 0);
-  if (semctl(shmd, IPC_RMID, 0)) {
-    printf("SHARED MEMORY error %d: %s\n", errno, strerror(errno));
+  if (shmctl(shmd, IPC_RMID, 0) == -1) {
+    printf("in removing u have shared memory error %d: %s\n", errno, strerror(errno));
     return errno;
   }
   printf("shared memory removed\n");
 
   //removing semaphore
-  if (semctl(shmd, IPC_RMID, 0)) {
+  if (semctl(shmid, IPC_RMID, 0) == -1) {
     printf("SEMAPHORE error %d: %s\n", errno, strerror(errno));
     return errno;
   }

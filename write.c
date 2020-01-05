@@ -9,43 +9,50 @@
 #include <errno.h>
 #include <fcntl.h>
 
-#define KEY 24601
+#define KEY_1 24601
 #define KEY_2 24602
 
-int shmd, semd, fd;
+int shmid;
+int shmd;
+int fd;
+union semun sm;
 struct sembuf semaphore;
 
 int main() {
-  // semaphore.sem_num = 0;
-  // semaphore.sem_op = -1;
-  //
-  // semd = semget(KEY,1,0644);
-  // if (semd == -1) {
-  //   printf("error %d: %s\n", errno, strerror(errno);
-  // }
-  //
-  // semop(semd, &semaphore, 1);
-  // shmd = shmget(KEY_2, sizeof(char *), 0);
-  // if (shmd < 0) {
-  //   printf("Error: %s\n", strerror(errno));
-  //   return -1;
-  // }
-  // fd = open("story.txt", O_WRONLY | O_APPEND);
-  // char *previous = shmat(shmd, 0, 0);
-  // printf("Previous addition: %s\n\n", previous);
-  // char next[SIZE];
-  // printf("Your addition: ");
-  // fgets(next, SIZE, stdin);
-  // printf("\n");
-  //
-  // write(fd, next, strlen(next));
-  // strcpy(previous, next);
-  // shmdt(previous);
-  //
-  // close(fd);
-  //
-  // semaphore.sem_op = 1;
-  // semop(semd, &semaphore, 1);
-  // return 0;
+  printf("trying to get in\n");
+  //checking memory
+  shmd = shmget(KEY_1, 1, 0);
+  if (shmd < 0) {
+    printf("memory error %d: %s\n", errno, strerror(errno));
+    return errno;
+  }
+  //checking semaphore
+  shmid = semget(KEY_2, 1, 0);
+  if (shmid < 0) {
+    printf("semaphore error %d: %s\n", errno, strerror(errno));
+    return errno;
+  }
+  semaphore.sem_op = -1;
+  semaphore.sem_op = 0;
+  semop(shmid, &semaphore, 1);
+
+  //opening file
+  FILE *fd = fopen("file.txt", "a");
+  //printing last addition
+  char *last_line = shmat(shmd, 0, 0);
+  printf("This was your last addition: %s\n", last_line);
+  char next_line[1000];
+  //getting next line from user
+  printf("Type in your next addition: ");
+  fgets(next_line, 1000, stdin);
+  fprintf(fd, "%s", next_line);
+
+  fclose(fd);
+  //release memory
+  shmdt(last_line);
+  semaphore.sem_op = 1;
+  //release semaphore
+  semop(shmd, &semaphore, 1);
+  return 0;
 
 }
